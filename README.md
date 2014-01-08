@@ -38,3 +38,73 @@ Properties should be accessible through standard object notation e.g.:
     $value = $model->root->branch->twig->leaf[0]->vein;
 
 I don't have the time to implement these (major) changes right now but they will come in the future.
+
+Usage
+-----
+
+    <?php
+    
+    use Clay\Clay;
+    
+    $data = array(
+        'this' => array(
+            'is' => 'just',
+            'a' => array(
+                'simple',
+                'test'
+            )
+        ),
+        'isnt' => 'anything'
+    );
+
+    $clay = new Clay(
+        $data,
+        array(
+            'this.is.a' => array(
+                'upper' => function(&$new) { $new = strtoupper($new); return true; }
+            ),
+            'this.is.a.simple.test' => array(
+                'type' => function(&$new) { return !is_numeric($new); },
+                'merge' => function(&$new, $current) { return $new = array_merge((array)$current, (array)$new); }
+            ),
+            'this.is.test.1' => array(
+                'convert' => function(&$new) { return $new = preg_replace('/[^\d]+/', '', $new); },
+                'type' => function(&$new) { return is_numeric($new); },
+                'merge_higher' => function(&$new, $current) {
+                    if($new <= max((array)$current)) return false;
+                    return $new = array_merge((array)$current, (array)$new);
+                }
+            ),
+            'this.is.test.2' => array(
+                'replace_longer' => function(&$new, $current) {
+                    if(strlen($new) <= max(array_map('strlen', (array)$current))) return false;
+                    return $new;
+                }
+            ),
+            'this.is.test.3' => array(
+                'numeric_lower' => function(&$new, $current) {
+                    if(empty($current)) return $new;
+                    $newnum = preg_replace('/[^\d]+/', '', $new);
+                    $curnum = preg_replace('/[^\d]+/', '', $current);
+                    return $new = $newnum < $curnum ? $new : $current;
+                }
+            )
+        )
+    );
+    
+    $clay->set('this.is.a.simple.test', '100 pounds');
+    $clay->set('this.is.a.simple.test', '200 pounds');
+    $clay->set('this.is.a.simple.test', '300 pounds');
+    $clay->set('this.is.test.1', '200 pounds');
+    $clay->set('this.is.test.1', '100 pounds');
+    $clay->set('this.is.test.1', '300 pounds');
+    $clay->set('this.is.test.2', '200 pounds');
+    $clay->set('this.is.test.2', '100 pounds and 50 pence');
+    $clay->set('this.is.test.2', '300 pounds');
+    $clay->set('this.is.test.3', '200 pounds');
+    $clay->set('this.is.test.3', '100 pounds');
+    $clay->set('this.is.test.3', '300 pounds');
+    
+    foreach($clay as $k => $v) {
+        print_r(array($k => $v));
+    }
